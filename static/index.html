@@ -1,7 +1,207 @@
 <html>
 
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    .grid {
+      color: gray;
+    }
+
+    .cTitle {
+      fill: black;
+      font-weight: bold;
+      font-size: x-large;
+    }
+
+    .axisTitle {
+      font-weight: bold;
+    }
+  </style>
+</head>
+
 <body>
   <p> reoryi</p>
+  <svg id="tVis" width="750" height="600"></svg>
+  <script>
+    function filterDate(item) {
+      if (item["PlantDate"] == "") {
+        return false;
+      }
+      if (item["qSpecies"] == "") {
+        return false;
+      }
+      return true;
+    }
+
+    const requestData = async function () {
+      // pre process data
+
+      var data = await d3.csv("filtered_data.csv");
+      let filtered_data = data.filter(filterDate);
+      filtered_data.forEach(tree => {
+        tree.PlantDate = new Date(tree.PlantDate).getFullYear();
+      });
+
+      // console.log(filtered_data);
+
+      let speciesCountByDecade = {};
+      filtered_data.forEach(tree => {
+        let year = parseInt(tree.PlantDate);
+        let decade = year - (year % 10);
+
+        if (!speciesCountByDecade[decade]) {
+          speciesCountByDecade[decade] = {};
+        }
+        if (!speciesCountByDecade[decade][tree.qSpecies]) {
+          speciesCountByDecade[decade][tree.qSpecies] = 0;
+        }
+
+        speciesCountByDecade[decade][tree.qSpecies]++;
+      });
+
+
+      let allMaxSpecies = [];
+
+      Object.keys(speciesCountByDecade).forEach(decade => {
+        let maxSpecies = "";
+        let maxCount = 0;
+
+        Object.keys(speciesCountByDecade[decade]).forEach(species => {
+          if (speciesCountByDecade[decade][species] > maxCount) {
+            maxCount = speciesCountByDecade[decade][species];
+            maxSpecies = species;
+          }
+        });
+
+        allMaxSpecies.push({ decade, maxSpecies, maxCount });
+      });
+      console.log(allMaxSpecies);
+
+      let justTopSpecies = allMaxSpecies.map(topResult => {
+        return topResult.maxSpecies;
+      });
+
+      justTopSpecies = Array.from(new Set(justTopSpecies));
+      commonNames = justTopSpecies.map(s => s.split("::")[1].trim());
+
+      let colorList = ["#738575", "SaddleBrown", "#50C878", "#075600", "#27A6B0", "#748500"];
+      let colorScale = d3.scaleOrdinal(justTopSpecies, colorList);
+
+      let maxCounts = allMaxSpecies.map(topVal => {
+        return topVal.maxCount;
+      });
+
+      // console.log(maxCounts);
+
+
+      //modify the low range of the counts to start at 0, so all years have some sort of bar
+      let countRange = d3.extent(maxCounts);
+      countRange[0] = 0;
+
+      //start making chart
+      let svg = d3.select("svg#tVis");
+      let w = svg.attr("width");
+      let h = svg.attr("height");
+
+      let margins = { "left": 70, "right": 300, "top": 50, "bottom": 50 };
+
+
+      let chartArea = svg.append("g")
+        .attr("transform", `translate(${margins.left}, ${0})`);
+
+      let chartWidth = w - margins.left - margins.right;
+      let chartHeight = h - margins.top - margins.bottom;
+
+      let spaceBetweenLeftAndBotAxis = 15;
+
+      let xScale = d3.scaleLinear(d3.extent(Object.keys(speciesCountByDecade)), [0, chartWidth - spaceBetweenLeftAndBotAxis]);
+
+      var xAxis = d3.axisBottom(xScale)
+        .tickValues(Object.keys(speciesCountByDecade));
+      svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", `translate(${margins["left"] + spaceBetweenLeftAndBotAxis},${chartHeight + margins["top"]})`)
+        .lower()
+        .call(xAxis);
+
+
+      let yScale = d3.scaleLinear(countRange, [chartHeight, 0]);
+
+      let leftAxis = d3.axisLeft(yScale);
+      svg.append("g")
+        .attr("class", "y axis")
+        .attr("transform", `translate(${margins.left}, ${margins.top})`)
+        .lower()
+        .call(leftAxis);
+
+      let leftGrid = d3.axisLeft(yScale).tickFormat('').tickSize(-chartWidth - 10);
+      svg.append("g")
+        .attr("class", "y grid")
+        .attr("transform", `translate(${margins["left"]}, ${margins["top"]})`)
+        .lower()
+        .call(leftGrid);
+
+      let barWidth = 20;
+
+      let bars = chartArea.selectAll("circle").data(allMaxSpecies)
+        .join("rect")
+        .attr("x", d => xScale(d.decade) + 5)
+        .attr("y", d => yScale(d.maxCount) + margins.top)
+        .attr("width", barWidth)
+        .attr("height", d => chartHeight - yScale(d.maxCount))
+        .attr("fill", d => colorScale(d.maxSpecies));
+
+      // chart title, axis titles
+
+      let chartTitle = svg.append("text")
+        .attr("class", "cTitle")
+        .text("San Francisco's Favorite Tree by Decade")
+        .style("text-anchor", "middle")
+        .attr("transform", `translate(${margins.left + chartWidth / 2}, ${margins.top / 2})`);
+
+      let leftTitle = svg.append("text")
+        .attr("class", "axisTitle")
+        .text("Trees Planted (by species)")
+        .style("text-anchor", "middle")
+        .attr("transform", `translate(${2 * margins.left / 5}, ${margins.top + chartHeight / 2}), rotate(-90)`);
+
+      let botTitle = svg.append("text")
+        .attr("class", "axisTitle")
+        .text("Decade Planted")
+        .style("text-anchor", "middle")
+        .attr("transform", `translate(${margins.left + chartWidth / 2}, ${chartHeight + margins.top + (4 * margins.bottom / 5)})`);
+
+      // color legend
+
+      let colorIndex = 0;
+      let legendSideLength = 15;
+      let boxSep = 20;
+
+      let legendG = svg.append("g")
+        .attr("transform", `translate(${w - 9 * margins.right / 10}, ${-margins.top + chartHeight / 2 + boxSep / 2})`);
+
+
+      colorList.forEach(color => {
+        legendG.append("rect")
+          .attr("fill", color)
+          .attr("x", 0)
+          .attr("y", colorIndex * (legendSideLength + boxSep))
+          .attr("width", legendSideLength)
+          .attr("height", legendSideLength);
+
+        legendG.append("text")
+          .text(commonNames[colorIndex])
+          .attr("x", legendSideLength + boxSep / 2)
+          .attr("y", colorIndex * (legendSideLength + boxSep))
+          .style("dominant-baseline", "hanging");
+        // .style("text-anchor", "middle");
+
+        colorIndex += 1;
+      });
+
+    }
+    requestData();
+  </script>
 </body>
 
 </html>
