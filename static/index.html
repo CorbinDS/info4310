@@ -103,7 +103,7 @@
       justTopSpecies = Array.from(new Set(justTopSpecies));
       commonNames = justTopSpecies.map(s => s.split("::")[1].trim());
 
-      let colorList = ["#738575", "SaddleBrown", "#50C878", "#075600", "#27A6B0", "#748500"];
+      let colorList = ["#D81B60", "#1E88E5", "#FFC107", "#004D40", "#43B754", "#B11624"];
       let colorScale = d3.scaleOrdinal(justTopSpecies, colorList);
 
       let maxCounts = allMaxSpecies.map(topVal => {
@@ -280,7 +280,7 @@
         .attr("y", d => yScale2(d.speciesPlanted) + margins.top)
         .attr("width", xScale2.bandwidth())
         .attr("height", d => chartHeight2 - yScale2(d.speciesPlanted))
-        .attr("fill", "#635946");
+        .attr("fill", "#237713");
 
 
       // chart title, axis titles
