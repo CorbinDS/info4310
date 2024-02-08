@@ -16,11 +16,21 @@
     .axisTitle {
       font-weight: bold;
     }
+
+    svg {
+      display: inline-block;
+
+
+    }
   </style>
 </head>
 
 <body>
-  <p> reoryi</p>
+  <h1>
+    cds244 - HW1
+  </h1>
+  <svg id="countVis" width="500" height="600"></svg>
+
   <svg id="tVis" width="750" height="600"></svg>
   <script>
     function filterDate(item) {
@@ -59,6 +69,15 @@
         speciesCountByDecade[decade][tree.qSpecies]++;
       });
 
+
+      let sumSpeciesCountByDecade = Object.keys(speciesCountByDecade).map(decade => {
+        let allSpecies = speciesCountByDecade[decade];
+        let speciesCount = Object.keys(allSpecies).length;
+        return { decade: decade, speciesPlanted: speciesCount };
+      });
+
+
+      console.log(sumSpeciesCountByDecade);
 
       let allMaxSpecies = [];
 
@@ -114,13 +133,16 @@
 
       let spaceBetweenLeftAndBotAxis = 15;
 
-      let xScale = d3.scaleLinear(d3.extent(Object.keys(speciesCountByDecade)), [0, chartWidth - spaceBetweenLeftAndBotAxis]);
 
+      // let xScale = d3.scaleLinear(d3.extent(Object.keys(speciesCountByDecade)), [0, chartWidth - spaceBetweenLeftAndBotAxis]);
+      let xScale = d3.scaleBand(Object.keys(speciesCountByDecade), [0, chartWidth + spaceBetweenLeftAndBotAxis])
+        .paddingOuter(0.01)
+        .paddingInner(0.1);
       var xAxis = d3.axisBottom(xScale)
         .tickValues(Object.keys(speciesCountByDecade));
       svg.append("g")
         .attr("class", "x axis")
-        .attr("transform", `translate(${margins["left"] + spaceBetweenLeftAndBotAxis},${chartHeight + margins["top"]})`)
+        .attr("transform", `translate(${margins["left"]},${chartHeight + margins["top"]})`)
         .lower()
         .call(xAxis);
 
@@ -134,20 +156,19 @@
         .lower()
         .call(leftAxis);
 
-      let leftGrid = d3.axisLeft(yScale).tickFormat('').tickSize(-chartWidth - 10);
+      let leftGrid = d3.axisLeft(yScale).tickFormat('').tickSize(-chartWidth - 16);
       svg.append("g")
         .attr("class", "y grid")
         .attr("transform", `translate(${margins["left"]}, ${margins["top"]})`)
         .lower()
         .call(leftGrid);
 
-      let barWidth = 20;
 
       let bars = chartArea.selectAll("circle").data(allMaxSpecies)
         .join("rect")
-        .attr("x", d => xScale(d.decade) + 5)
+        .attr("x", d => xScale(d.decade))
         .attr("y", d => yScale(d.maxCount) + margins.top)
-        .attr("width", barWidth)
+        .attr("width", xScale.bandwidth())
         .attr("height", d => chartHeight - yScale(d.maxCount))
         .attr("fill", d => colorScale(d.maxSpecies));
 
@@ -198,6 +219,90 @@
 
         colorIndex += 1;
       });
+
+
+      // make second chart
+
+      let svg2 = d3.select("svg#countVis");
+      let w2 = svg2.attr("width");
+      let h2 = svg2.attr("height");
+
+      let margins2 = { "left": 70, "right": 50, "top": 50, "bottom": 50 };
+
+
+      let chartArea2 = svg2.append("g")
+        .attr("transform", `translate(${margins2.left}, ${0})`);
+
+      let chartWidth2 = w2 - margins2.left - margins2.right;
+      let chartHeight2 = h2 - margins2.top - margins2.bottom;
+
+      let xScale2 = d3.scaleBand(Object.keys(speciesCountByDecade), [0, chartWidth2 + spaceBetweenLeftAndBotAxis])
+        .paddingOuter(0.01)
+        .paddingInner(0.1);
+      var xAxis2 = d3.axisBottom(xScale2)
+        .tickValues(Object.keys(speciesCountByDecade));
+      svg2.append("g")
+        .attr("class", "x axis")
+        .attr("transform", `translate(${margins2["left"]},${chartHeight2 + margins2["top"]})`)
+        .lower()
+        .call(xAxis2);
+
+
+      let plantedRange = sumSpeciesCountByDecade.map(obj => {
+        return obj.speciesPlanted;
+      });
+
+      plantedRange.push(0);
+
+
+
+      let yScale2 = d3.scaleLinear(d3.extent(plantedRange), [chartHeight2, 0]);
+
+      let leftAxis2 = d3.axisLeft(yScale2);
+      svg2.append("g")
+        .attr("class", "y axis")
+        .attr("transform", `translate(${margins2.left}, ${margins2.top})`)
+        .lower()
+        .call(leftAxis2);
+
+      let leftGrid2 = d3.axisLeft(yScale2).tickFormat('').tickSize(-chartWidth2 - 16);
+      svg2.append("g")
+        .attr("class", "y grid")
+        .attr("transform", `translate(${margins2["left"]}, ${margins2["top"]})`)
+        .lower()
+        .call(leftGrid2);
+
+
+
+      let bars2 = chartArea2.selectAll("circle").data(sumSpeciesCountByDecade)
+        .join("rect")
+        .attr("x", d => xScale2(d.decade))
+        .attr("y", d => yScale2(d.speciesPlanted) + margins.top)
+        .attr("width", xScale2.bandwidth())
+        .attr("height", d => chartHeight2 - yScale2(d.speciesPlanted))
+        .attr("fill", "#635946");
+
+
+      // chart title, axis titles
+
+      let chartTitle2 = svg2.append("text")
+        .attr("class", "cTitle")
+        .text("Unique Tree Species Planted By Decade")
+        .style("text-anchor", "middle")
+        .attr("transform", `translate(${margins2.left + chartWidth2 / 2}, ${margins2.top / 2})`);
+
+      let leftTitle2 = svg2.append("text")
+        .attr("class", "axisTitle")
+        .text("Number of Species Planted")
+        .style("text-anchor", "middle")
+        .attr("transform", `translate(${2 * margins2.left / 5}, ${margins2.top + chartHeight2 / 2}), rotate(-90)`);
+
+      let botTitle2 = svg2.append("text")
+        .attr("class", "axisTitle")
+        .text("Decade Planted")
+        .style("text-anchor", "middle")
+        .attr("transform", `translate(${margins2.left + chartWidth2 / 2}, ${chartHeight2 + margins2.top + (4 * margins2.bottom / 5)})`);
+
 
     }
     requestData();
